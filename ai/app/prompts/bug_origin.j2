@@ -29,10 +29,11 @@ The engineer wants to trace the likely origin of bugs or issues in this area of 
 
 ---
 
-Analyze the bug patterns in this area:
+Analyze the bug patterns in this area and explicitly identify the origin commit:
 
-1. **Recurring issues**: Are there patterns in what keeps breaking? (same functions, same authors, same time periods)
-2. **Root causes**: For each fix commit, trace back to the likely commit that introduced the bug
-3. **Contributing factors**: Is complexity, tight coupling, or poor test coverage involved?
-4. **Recommendations**: How can the team reduce bug density in this area?
-5. **Risk forecast**: Based on the patterns, what's likely to break next?
+1. **Culprit Commit**: Start your response by explicitly stating the most likely single commit SHA that introduced the bug.
+2. **Recurring issues**: Are there patterns in what keeps breaking? (same functions, same authors, same time periods)
+3. **Root causes**: Explain how the culprit commit introduced the issue and why it was a bug.
+4. **Contributing factors**: Is complexity, tight coupling, or poor test coverage involved?
+5. **Recommendations**: How can the team reduce bug density in this area?
+6. **Risk forecast**: Based on the patterns, what's likely to break next?

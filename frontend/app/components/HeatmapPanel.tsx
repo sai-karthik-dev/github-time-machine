@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CommandLineIcon, ArrowPathIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
+import FileHealthBadge from "./FileHealthBadge";
 
 interface DebtScore {
   path: string;
@@ -141,6 +142,9 @@ export default function HeatmapPanel({ repoId }: { repoId: string }) {
                   <span className="small-caps">FILE PROFILE</span>
                   <h2>{selectedFile.path.split("/").pop()}</h2>
                   <span className="sub-path">{selectedFile.path}</span>
+                  <div className="mt-3">
+                    <FileHealthBadge repoId={repoId} path={selectedFile.path} showLabel={true} />
+                  </div>
                 </div>
 
                 <div className="inspector-indicators">

@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import chat, graph, impact, timeline, heatmap
+from app.routers import chat, graph, impact, timeline, heatmap, health, bug_origin, refactor_plan
 
 # ── Logging ─────────────────────────────────────────────────────────────
 
@@ -74,6 +74,9 @@ app.include_router(graph.router)
 app.include_router(impact.router)
 app.include_router(timeline.router)
 app.include_router(heatmap.router)
+app.include_router(health.router)
+app.include_router(bug_origin.router)
+app.include_router(refactor_plan.router)
 
 
 # ── Health Check ────────────────────────────────────────────────────────
@@ -104,6 +107,9 @@ async def root():
             "impact": "POST /repos/{repo_id}/impact",
             "timeline": "GET /repos/{repo_id}/timeline",
             "heatmap": "GET /repos/{repo_id}/heatmap",
+            "file_health": "GET /repos/{repo_id}/file_health",
+            "bug_origin": "POST /repos/{repo_id}/bug_origin",
+            "refactor_plan": "POST /repos/{repo_id}/refactor_plan",
             "health": "GET /health",
         },
     }

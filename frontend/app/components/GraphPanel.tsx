@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { CubeTransparentIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
+import FileHealthBadge from "./FileHealthBadge";
 
 interface GraphNode {
   id: string;
@@ -249,6 +250,11 @@ export default function GraphPanel({ repoId }: { repoId: string }) {
               <div className="inspector-header">
                 <span className="small-caps">{selectedNode.type.toUpperCase()}</span>
                 <h2>{selectedNode.label}</h2>
+                {selectedNode.type === "file" && selectedNode.path && (
+                  <div className="mt-2">
+                    <FileHealthBadge repoId={repoId} path={selectedNode.path} showLabel={true} />
+                  </div>
+                )}
               </div>
               <div className="inspector-metrics">
                 <div className="metric-box">

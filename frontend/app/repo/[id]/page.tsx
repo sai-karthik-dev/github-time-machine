@@ -7,6 +7,7 @@ import TimelinePanel from "../../components/TimelinePanel";
 import HeatmapPanel from "../../components/HeatmapPanel";
 import ImpactPanel from "../../components/ImpactPanel";
 import ChatPanel from "../../components/ChatPanel";
+import RefactorPlanner from "../../components/RefactorPlanner";
 
 interface Repository {
   id: string;
@@ -23,7 +24,7 @@ export default function RepoDashboard({ params }: { params: Promise<{ id: string
   const resolvedParams = use(params);
   const repoId = resolvedParams.id;
   const [repo, setRepo] = useState<Repository | null>(null);
-  const [activeTab, setActiveTab] = useState<"graph" | "timeline" | "heatmap" | "impact" | "chat">("chat");
+  const [activeTab, setActiveTab] = useState<"graph" | "timeline" | "heatmap" | "impact" | "chat" | "refactor">("chat");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,6 +72,7 @@ export default function RepoDashboard({ params }: { params: Promise<{ id: string
         {activeTab === "heatmap" && <HeatmapPanel repoId={repoId} />}
         {activeTab === "impact" && <ImpactPanel repoId={repoId} />}
         {activeTab === "chat" && <ChatPanel repoId={repoId} />}
+        {activeTab === "refactor" && <RefactorPlanner repoId={repoId} />}
       </div>
     </DashboardShell>
   );

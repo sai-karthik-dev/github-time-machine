@@ -12,6 +12,7 @@ import {
   SparklesIcon,
   CloudIcon,
   UserCircleIcon,
+  WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
 
 interface Repository {
@@ -27,8 +28,8 @@ interface Repository {
 
 interface DashboardShellProps {
   repo: Repository | null;
-  activeTab: "graph" | "timeline" | "heatmap" | "impact" | "chat";
-  setActiveTab: (tab: "graph" | "timeline" | "heatmap" | "impact" | "chat") => void;
+  activeTab: "graph" | "timeline" | "heatmap" | "impact" | "chat" | "refactor";
+  setActiveTab: (tab: "graph" | "timeline" | "heatmap" | "impact" | "chat" | "refactor") => void;
   loading: boolean;
   error: string | null;
   children: React.ReactNode;
@@ -48,6 +49,7 @@ export default function DashboardShell({
     { id: "timeline", name: "Architecture Timeline", icon: ChartBarIcon, desc: "Commit evolution scrub" },
     { id: "heatmap", name: "Technical Debt", icon: CommandLineIcon, desc: "Complexity hotspot maps" },
     { id: "impact", name: "Change Intelligence", icon: ShieldCheckIcon, desc: "Blast radius simulator" },
+    { id: "refactor", name: "Refactor Planner", icon: WrenchScrewdriverIcon, desc: "Actionable refactoring steps" },
   ] as const;
 
   return (

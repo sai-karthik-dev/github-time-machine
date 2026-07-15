@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ShieldCheckIcon, PlayIcon, ExclamationCircleIcon } from "@heroicons/react/24/outline";
+import { ShieldCheckIcon, PlayIcon, ExclamationCircleIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 
 interface AffectedFile {
   path: string;
@@ -20,12 +20,20 @@ interface ImpactResult {
   total_affected: number;
 }
 
+interface BugOriginResult {
+  file_path: string;
+  culprit_commit_sha: string | null;
+  ai_explanation: string;
+}
+
 export default function ImpactPanel({ repoId }: { repoId: string }) {
   const [fileList, setFileList] = useState<string[]>([]);
   const [selectedFile, setSelectedFile] = useState("");
   const [changeType, setChangeType] = useState("modify");
   const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ImpactResult | null>(null);
+  const [bugOriginResult, setBugOriginResult] = useState<BugOriginResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Populate dropdown list with files from graph or files route
@@ -65,6 +73,7 @@ export default function ImpactPanel({ repoId }: { repoId: string }) {
       setLoading(true);
       setError(null);
       setResult(null);
+      setBugOriginResult(null);
 
       const res = await fetch(`http://localhost:8001/repos/${repoId}/impact`, {
         method: "POST",
@@ -81,6 +90,30 @@ export default function ImpactPanel({ repoId }: { repoId: string }) {
       setResult(json);
     } catch (err: any) {
       setError(err.message || "Failed to simulate change");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const runBugOrigin = async () => {
+    if (!selectedFile) return;
+    try {
+      setLoading(true);
+      setError(null);
+      setResult(null);
+      setBugOriginResult(null);
+
+      const res = await fetch(`http://localhost:8001/repos/${repoId}/bug_origin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file_path: selectedFile }),
+      });
+
+      if (!res.ok) throw new Error("Bug origin analysis failed");
+      const json = await res.json();
+      setBugOriginResult(json);
+    } catch (err: any) {
+      setError(err.message || "Failed to analyze bug origin");
     } finally {
       setLoading(false);
     }
@@ -135,23 +168,43 @@ export default function ImpactPanel({ repoId }: { repoId: string }) {
           </div>
         </div>
 
-        <button
-          onClick={runSimulation}
-          disabled={loading || !selectedFile}
-          className="primary-button btn-run-impact"
-        >
-          {loading ? (
-            <>
-              <div className="spinner-small" />
-              <span>Simulating Blast Radius...</span>
-            </>
-          ) : (
-            <>
-              <PlayIcon className="w-4 h-4" />
-              <span>Simulate Change Impact</span>
-            </>
-          )}
-        </button>
+        <div className="flex gap-4">
+          <button
+            onClick={runSimulation}
+            disabled={loading || !selectedFile}
+            className="primary-button btn-run-impact flex-1"
+          >
+            {loading ? (
+              <>
+                <div className="spinner-small" />
+                <span>Working...</span>
+              </>
+            ) : (
+              <>
+                <PlayIcon className="w-4 h-4" />
+                <span>Simulate Change Impact</span>
+              </>
+            )}
+          </button>
+          
+          <button
+            onClick={runBugOrigin}
+            disabled={loading || !selectedFile}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-500 disabled:bg-slate-700 text-white rounded text-sm font-medium transition-colors flex-1"
+          >
+            {loading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                <span>Tracing...</span>
+              </>
+            ) : (
+              <>
+                <MagnifyingGlassIcon className="w-4 h-4" />
+                <span>Trace Bug Origin</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Simulator Response Details */}
@@ -221,6 +274,53 @@ export default function ImpactPanel({ repoId }: { repoId: string }) {
               <h3>AI Architectural Analysis</h3>
               <div className="ai-rich-text markdown-render">
                 {result.ai_explanation.split("\n").map((line, idx) => {
+                  if (line.startsWith("###")) {
+                    return <h4 key={idx} className="md-h4">{line.replace("###", "")}</h4>;
+                  }
+                  if (line.startsWith("####")) {
+                    return <h5 key={idx} className="md-h5">{line.replace("####", "")}</h5>;
+                  }
+                  if (line.startsWith("-") || line.startsWith("*")) {
+                    return <li key={idx} className="md-li">{line.substring(1)}</li>;
+                  }
+                  if (line.trim() === "") {
+                    return <div key={idx} className="h-2" />;
+                  }
+                  return <p key={idx} className="md-p">{line}</p>;
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bugOriginResult && (
+        <div className="impact-results-layout mt-6">
+          <div className="results-column-left">
+            <div className="risk-score-card border-rose-500/30 bg-rose-500/5">
+              <h3 className="text-rose-400">Culprit Commit</h3>
+              <div className="flex flex-col mt-2">
+                {bugOriginResult.culprit_commit_sha ? (
+                  <span className="text-2xl font-bold font-mono text-slate-200">
+                    {bugOriginResult.culprit_commit_sha.substring(0, 7)}
+                  </span>
+                ) : (
+                  <span className="text-lg font-medium text-slate-400">
+                    Could not identify a single commit
+                  </span>
+                )}
+                <span className="text-sm text-slate-400 mt-1">
+                  Origin of bugs in <code className="text-slate-300">{bugOriginResult.file_path}</code>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="results-column-right">
+            <div className="ai-narrative-card border-rose-500/20">
+              <h3 className="text-rose-400">Root Cause Analysis</h3>
+              <div className="ai-rich-text markdown-render">
+                {bugOriginResult.ai_explanation.split("\n").map((line, idx) => {
                   if (line.startsWith("###")) {
                     return <h4 key={idx} className="md-h4">{line.replace("###", "")}</h4>;
                   }
