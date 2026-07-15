@@ -1,0 +1,19 @@
+import Link from "next/link";
+import { ArrowRightIcon, BoltIcon, ChartBarIcon, CommandLineIcon, CubeTransparentIcon, ShieldCheckIcon } from "@heroicons/react/24/outline";
+import { SkeletonAnalysis } from "./components/ExperienceEnhancements";
+
+const features = [
+  { icon: CubeTransparentIcon, title: "Software DNA", text: "See the structure, ownership, churn, and complexity that shape every module." },
+  { icon: ChartBarIcon, title: "Architecture timeline", text: "Travel through commits to understand when—and why—your system changed." },
+  { icon: ShieldCheckIcon, title: "Change intelligence", text: "Know what breaks before it does with graph-powered impact analysis." },
+];
+
+export default function Home() {
+  return <main className="site-shell">
+    <nav className="nav"><Link href="/" className="brand"><span className="brand-mark">⌁</span>GITHUB <em>TIME MACHINE</em></Link><div className="nav-links"><a href="#platform">Platform</a><a href="#how-it-works">How it works</a><Link className="nav-login" href="/login">Sign in <ArrowRightIcon /></Link></div></nav>
+    <section className="hero"><div className="eyebrow"><span /> Engineering intelligence for evolving codebases</div><h1>Know your codebase.<br/><i>Across time.</i></h1><p>GitHub Time Machine turns repository history into architectural understanding—so your team can change software with confidence.</p><div className="hero-actions"><Link className="primary-button" href="/login">Connect your repository <ArrowRightIcon /></Link><a className="text-button" href="#how-it-works">Explore the platform <span>↓</span></a></div><div className="terminal-card"><div className="terminal-top"><div className="dots"><b/><b/><b/></div><span>analysis / architecture.ts</span><span className="live"><b/> Live intelligence</span></div><div className="terminal-content"><div className="code-lines"><span>01</span><code>import &#123; <strong>history</strong> &#125; from <i>&apos;@github/time-machine&apos;</i></code><span>02</span><code className="faded">// Every decision has a story.</code><span>03</span><code><strong>const</strong> system = history.<mark>understand</mark>(repository)</code><span>04</span><code><strong>await</strong> system.<mark>predict</mark>(change)</code></div><div className="insight"><div className="insight-icon"><BoltIcon /></div><div><span>ARCHITECT&apos;S MEMORY</span><p>Authentication changed 14 times. The current boundary was introduced to isolate billing.</p><a href="#platform">Trace the decision <ArrowRightIcon /></a><SkeletonAnalysis /></div></div></div></div></section>
+    <section id="platform" className="feature-section"><div className="section-intro"><span className="section-label">THE PLATFORM</span><h2>From code history to<br/>engineering clarity.</h2><p>Give every engineer the context of the people and decisions that came before them.</p></div><div className="feature-grid">{features.map(({icon: Icon,title,text},index)=><article className="feature-card" key={title}><div className="feature-number">0{index+1}</div><Icon className="feature-icon"/><h3>{title}</h3><p>{text}</p><a href="#how-it-works">Explore <ArrowRightIcon /></a></article>)}</div></section>
+    <section id="how-it-works" className="how"><div><span className="section-label">HOW IT WORKS</span><h2>Your repository,<br/><i>remembered.</i></h2></div><ol><li><b>01</b><div><h3>Connect GitHub</h3><p>Securely select the repository your team wants to understand.</p></div></li><li><b>02</b><div><h3>Map the system</h3><p>We connect code, dependencies, commits, and decisions into one living graph.</p></div></li><li><b>03</b><div><h3>Build with context</h3><p>Ask questions, simulate changes, and navigate the future with confidence.</p></div></li></ol></section>
+    <footer><span className="brand"><span className="brand-mark">⌁</span>GITHUB <em>TIME MACHINE</em></span><span>Built for engineers who inherit the future.</span><CommandLineIcon /></footer>
+  </main>;
+}
