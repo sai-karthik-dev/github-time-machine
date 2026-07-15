@@ -1,0 +1,36 @@
+## Context: File History Narration
+
+Narrate the evolution of this file as a story — when it was created, how it changed, who shaped it, and why.
+
+### Repository: {{ repo.full_name }}
+
+### File: `{{ file.path }}`
+- **Language**: {{ file.language }}
+- **Current size**: {{ file.line_count }} lines
+- **Complexity**: {{ file.complexity_score }}/100
+
+### Full Commit History for This File ({{ commits|length }} commits, chronological)
+{% for c in commits %}
+{{ loop.index }}. `{{ c.sha[:7] }}` — **{{ c.author_name }}** — {{ c.timestamp.strftime('%Y-%m-%d %H:%M') }}
+   > {{ c.message }}
+   > +{{ c.additions }} / -{{ c.deletions }} lines changed
+   {%- if c.is_fix_commit %} 🐛 (fix commit){% endif %}
+{% endfor %}
+
+{% if edges %}
+### Dependencies
+{% for e in edges %}
+- {{ e.edge_type }}: → `{{ e.target_id }}`
+{% endfor %}
+{% endif %}
+
+---
+
+Please narrate the story of this file:
+1. **Origin**: When and why was it created? What problem did it solve?
+2. **Evolution**: How has it changed over time? What were the major turning points?
+3. **Ownership**: Who are the key contributors? Did ownership shift?
+4. **Health**: Is it showing signs of tech debt (frequent fixes, growing complexity)?
+5. **Future**: What should the next engineer who touches this file know?
+
+Write in a narrative style — as if you're telling the story of this code to a new team member.

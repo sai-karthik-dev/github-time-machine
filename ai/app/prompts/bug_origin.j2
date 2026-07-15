@@ -1,0 +1,39 @@
+## Context: Bug Origin Tracking
+
+The engineer wants to trace the likely origin of bugs or issues in this area of the codebase.
+
+### Repository: {{ repo.full_name }}
+
+### Area of Investigation: `{{ file_path }}`
+
+### Fix Commits (commits flagged as bug fixes touching this area)
+{% for c in fix_commits %}
+{{ loop.index }}. `{{ c.sha[:7] }}` — **{{ c.author_name }}** — {{ c.timestamp.strftime('%Y-%m-%d') }}
+   > {{ c.message }}
+   > Changed {{ c.files_changed }} files (+{{ c.additions }}/-{{ c.deletions }})
+{% endfor %}
+
+{% if surrounding_commits %}
+### Surrounding Commits (changes before/after each fix)
+{% for c in surrounding_commits %}
+- `{{ c.sha[:7] }}` by {{ c.author_name }} ({{ c.timestamp.strftime('%Y-%m-%d') }}): {{ c.message }}
+{% endfor %}
+{% endif %}
+
+{% if edges %}
+### Related Dependencies
+{% for e in edges %}
+- {{ e.edge_type }}: `{{ e.source_id }}` → `{{ e.target_id }}`
+{% endfor %}
+{% endif %}
+
+---
+
+Analyze the bug patterns in this area and explicitly identify the origin commit:
+
+1. **Culprit Commit**: Start your response by explicitly stating the most likely single commit SHA that introduced the bug.
+2. **Recurring issues**: Are there patterns in what keeps breaking? (same functions, same authors, same time periods)
+3. **Root causes**: Explain how the culprit commit introduced the issue and why it was a bug.
+4. **Contributing factors**: Is complexity, tight coupling, or poor test coverage involved?
+5. **Recommendations**: How can the team reduce bug density in this area?
+6. **Risk forecast**: Based on the patterns, what's likely to break next?

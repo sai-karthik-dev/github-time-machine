@@ -1,0 +1,63 @@
+## Context: Architecture Explanation Request
+
+The engineer is asking about the architecture and history of this codebase.
+
+### Repository
+- **Name**: {{ repo.full_name }}
+- **Language**: {{ repo.language or "Mixed" }}
+- **Total commits**: {{ repo.total_commits }}
+- **Total files**: {{ repo.total_files }}
+
+{% if target_file %}
+### Focus File: `{{ target_file.path }}`
+- **Language**: {{ target_file.language }}
+- **Lines**: {{ target_file.line_count }}
+- **Complexity score**: {{ target_file.complexity_score }}/100
+- **Last modified**: {{ target_file.last_modified.strftime('%Y-%m-%d') }}
+
+{% if functions %}
+### Functions in this file
+{% for fn in functions %}
+- `{{ fn.signature or fn.name }}` (lines {{ fn.start_line }}-{{ fn.end_line }}, complexity: {{ fn.complexity }})
+{% endfor %}
+{% endif %}
+{% endif %}
+
+{% if target_function %}
+### Focus Function: `{{ target_function.name }}`
+- **Signature**: `{{ target_function.signature }}`
+- **Lines**: {{ target_function.start_line }}-{{ target_function.end_line }}
+- **Complexity**: {{ target_function.complexity }}
+{% endif %}
+
+{% if commits %}
+### Recent Commit History ({{ commits|length }} commits)
+{% for c in commits[:15] %}
+- `{{ c.sha[:7] }}` by **{{ c.author_name }}** ({{ c.timestamp.strftime('%Y-%m-%d') }}): {{ c.message }}
+  {%- if c.is_fix_commit %} 🐛 _fix commit_{% endif %}
+{% endfor %}
+{% if commits|length > 15 %}
+_...and {{ commits|length - 15 }} more commits_
+{% endif %}
+{% endif %}
+
+{% if edges %}
+### Dependency Relationships
+{% for e in edges %}
+- {{ e.edge_type }}: `{{ e.source_id }}` → `{{ e.target_id }}` (weight: {{ e.weight }})
+{% endfor %}
+{% endif %}
+
+---
+
+### Engineer's Question
+{{ question }}
+
+---
+
+Please provide a thorough architectural explanation that:
+1. Explains the purpose and role of the code in question
+2. Traces key historical decisions through the commit history
+3. Identifies any patterns, risks, or technical debt
+4. Highlights important dependencies and their implications
+5. Suggests what the engineer should understand before making changes
