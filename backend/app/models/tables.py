@@ -31,7 +31,11 @@ class Commit(BaseModel):
     repository_id: UUID
     commit_sha: str
     author: Optional[str] = None
+    author_email: Optional[str] = None
+    committer_name: Optional[str] = None
+    committer_email: Optional[str] = None
     message: Optional[str] = None
+    summary: Optional[str] = None
     commit_date: Optional[datetime] = None
 
 
