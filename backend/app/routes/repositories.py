@@ -1,8 +1,9 @@
-from datetime import datetime
+import logging
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 
 from app.core.supabase import get_supabase
 from app.models.schemas import (
@@ -17,12 +18,24 @@ from app.models.schemas import (
     RepositoryResponse,
     RepositorySubmitRequest,
 )
+from app.services.repo_analyzer import RepoAnalyzer
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/repositories", tags=["repositories"])
 
 
+def _run_analysis(repository_id: str, github_url: str) -> None:
+    try:
+        analyzer = RepoAnalyzer(repository_id, github_url)
+        result = analyzer.analyze()
+        logger.info(f"Analysis complete for {repository_id}: {result}")
+    except Exception as e:
+        logger.error(f"Background analysis failed for {repository_id}: {e}")
+
+
 @router.post("/", response_model=RepositoryResponse, status_code=202)
-async def submit_repository(body: RepositorySubmitRequest):
+async def submit_repository(body: RepositorySubmitRequest, background_tasks: BackgroundTasks):
     supabase = get_supabase()
 
     repo_response = (
@@ -40,9 +53,30 @@ async def submit_repository(body: RepositorySubmitRequest):
         "status": "pending",
     }).execute()
 
+    background_tasks.add_task(_run_analysis, repo["id"], body.github_url)
+
     return RepositoryPending(
         id=repo["id"],
         github_url=repo["github_url"],
+        created_at=datetime.fromisoformat(repo["created_at"]),
+    )
+
+
+@router.post("/{repo_id}/analyze", response_model=RepositoryResponse)
+async def trigger_analysis(repo_id: UUID, background_tasks: BackgroundTasks):
+    supabase = get_supabase()
+
+    repo_response = supabase.table("repositories").select("*").eq("id", str(repo_id)).execute()
+    if not repo_response.data:
+        raise HTTPException(status_code=404, detail="Repository not found")
+
+    repo = repo_response.data[0]
+    background_tasks.add_task(_run_analysis, str(repo_id), repo["github_url"])
+
+    return RepositoryProcessing(
+        id=repo["id"],
+        github_url=repo["github_url"],
+        started_at=datetime.now(timezone.utc),
         created_at=datetime.fromisoformat(repo["created_at"]),
     )
 

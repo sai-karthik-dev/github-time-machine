@@ -68,3 +68,27 @@ class ChatMessage(BaseModel):
     question: str
     answer: Optional[str] = None
     created_at: Optional[datetime] = None
+
+
+class Function(BaseModel):
+    id: UUID
+    file_id: UUID
+    repository_id: UUID
+    name: str
+    signature: Optional[str] = None
+    start_line: int
+    end_line: int
+    is_exported: bool = False
+    created_at: Optional[datetime] = None
+
+
+class Edge(BaseModel):
+    id: UUID
+    repository_id: UUID
+    source_id: UUID
+    target_id: UUID
+    edge_type: str
+    source_name: Optional[str] = None
+    target_name: Optional[str] = None
+    metadata: Optional[dict] = None
+    created_at: Optional[datetime] = None
