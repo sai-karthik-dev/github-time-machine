@@ -12,8 +12,6 @@
   </p>
 </p>
 
----
-
 ## 🌟 What is Codex Time Machine?
 
 Software projects evolve through thousands of commits, architectural decisions, bug fixes, and refactoring sessions.
@@ -152,10 +150,8 @@ FastAPI Backend
         │
         ▼
 Next.js Dashboard
-```
 
----
-
+<p align="left">
 # 🛠 Technology Stack
 ## Frontend
 - Next.js
@@ -193,9 +189,8 @@ Frontend Developer - Anmol
 Backend Developer - Fernando
 Backend Developer - Pranto
 Database Engineer - Vijay 
+</p>
 
-# 📽 Demo
-Demo video coming soon.
 
 # 📄 License
 This project is released under the MIT License.
