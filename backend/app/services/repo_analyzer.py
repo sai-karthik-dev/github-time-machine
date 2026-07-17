@@ -423,6 +423,7 @@ class RepoAnalyzer:
                 model=OPENAI_EMBEDDING_MODEL,
                 input=texts,
                 dimensions=EMBEDDING_DIMENSION,
+                safety_identifier=f"repo:{self.repository_id}",
             )
             for item, emb_data in zip(batch, response.data):
                 self.supabase.table("files").update({

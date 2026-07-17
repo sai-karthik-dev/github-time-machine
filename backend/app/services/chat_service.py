@@ -56,9 +56,28 @@ class ChatService:
         if self._is_injection(question):
             return "I can only answer questions about the repository's code, architecture, and history."
 
+        if self._is_flagged(question):
+            return "I can only answer questions about the repository's code, architecture, and history."
+
         context = self._fetch_context()
         messages = self._build_messages(question, context)
         return self._call_openai(messages)
+
+    def _is_flagged(self, text: str) -> bool:
+        """Run OpenAI's free Moderation API to catch unsafe content.
+        Per https://platform.openai.com/docs/guides/moderation"""
+        try:
+            response = self._client.moderations.create(
+                model="omni-moderation-latest",
+                input=text,
+            )
+            result = response.results[0]
+            if result.flagged:
+                logger.warning("Moderation flagged: %s", dict(result.categories))
+                return True
+        except Exception:
+            logger.debug("Moderation API unavailable, skipping")
+        return False
 
     def _is_injection(self, question: str) -> bool:
         for pattern in INJECTION_PATTERNS:
@@ -134,6 +153,7 @@ class ChatService:
                 messages=messages,
                 max_tokens=CHAT_MAX_TOKENS,
                 temperature=CHAT_TEMPERATURE,
+                safety_identifier=f"repo:{self.repository_id}",
             )
             return response.choices[0].message.content or ""
         except Exception:
