@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 def _int_env(key: str, default: int) -> int:
+    """Read an integer env var safely — returns *default* on missing or invalid value."""
     value = os.getenv(key, "")
     if not value:
         return default

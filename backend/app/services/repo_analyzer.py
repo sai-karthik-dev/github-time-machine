@@ -40,6 +40,15 @@ except ImportError:
 
 
 class RepoAnalyzer:
+    """Facade for the full repository analysis pipeline.
+
+    Example:
+        analyzer = RepoAnalyzer(repo_id, "https://github.com/org/repo")
+        result = analyzer.analyze()  # clone → walk → parse → store → commits → metadata
+
+    The only public method is analyze(). All internal steps are private and
+    independently testable.
+    """
     def __init__(self, repository_id: str, github_url: str):
         self.repository_id = repository_id
         self.github_url = github_url
@@ -47,6 +56,11 @@ class RepoAnalyzer:
         self._temp_dir = None
 
     def analyze(self) -> dict:
+        """Run the full pipeline: clone → walk → store files → extract commits → metadata.
+
+        Returns:
+            dict with {'files_indexed': int}
+        """
         self._set_status("processing", started_at=datetime.now(timezone.utc).isoformat())
 
         try:

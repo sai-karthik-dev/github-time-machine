@@ -4,8 +4,11 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+# Database table models — 1:1 mapping with Supabase Postgres tables
+
 
 class User(BaseModel):
+    """users table — GitHub-authenticated user accounts."""
     id: UUID
     github_id: int
     username: str
@@ -15,6 +18,7 @@ class User(BaseModel):
 
 
 class Repository(BaseModel):
+    """repositories table — submitted GitHub repos with metadata."""
     id: UUID
     user_id: UUID
     name: str

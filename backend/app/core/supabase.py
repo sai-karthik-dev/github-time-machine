@@ -6,6 +6,7 @@ _client: Client | None = None
 
 
 def get_supabase() -> Client:
+    """Return the singleton Supabase client (service_role). Lazy-initialized on first call."""
     global _client
     if _client is None:
         if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
