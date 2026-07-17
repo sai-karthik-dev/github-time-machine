@@ -107,3 +107,23 @@ class TimelineStats(BaseModel):
 class TimelineResponse(BaseModel):
     events: list[TimelineEvent] = []
     stats: Optional[TimelineStats] = None
+
+
+class GraphNode(BaseModel):
+    id: str
+    label: str
+    type: str = "file"
+    language: Optional[str] = None
+    size: Optional[int] = None
+
+
+class GraphEdge(BaseModel):
+    source: str
+    target: str
+    type: str = "imports"
+    label: Optional[str] = None
+
+
+class GraphResponse(BaseModel):
+    nodes: list[GraphNode] = []
+    edges: list[GraphEdge] = []

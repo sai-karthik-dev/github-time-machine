@@ -10,6 +10,9 @@ from app.core.supabase import get_supabase
 from app.models.schemas import (
     ChatRequest,
     ChatResponse,
+    GraphEdge,
+    GraphNode,
+    GraphResponse,
     RepositoryCompleted,
     RepositoryError,
     RepositoryListItem,
@@ -28,6 +31,8 @@ logger = logging.getLogger(__name__)
 
 _FIX_PATTERN = re.compile(r"\b(fix|bug|patch|hotfix|resolve|close)\b", re.IGNORECASE)
 _MERGE_PATTERN = re.compile(r"^merge", re.IGNORECASE)
+_IMPORT_PY = re.compile(r"(?:from\s+(\S+)\s+import|import\s+(\S+))")
+_IMPORT_JS = re.compile(r"""(?:import\s+.*?\s+from\s+['"]([^'"]+)['"]|require\s*\(\s*['"]([^'"]+)['"]\s*\))""")
 
 router = APIRouter(prefix="/repositories", tags=["repositories"])
 
@@ -329,3 +334,86 @@ async def get_repository_timeline(
     )
 
     return TimelineResponse(events=events, stats=stats)
+
+
+def _extract_imports(content: str) -> list[str]:
+    modules: list[str] = []
+    for m in _IMPORT_PY.finditer(content):
+        module = m.group(1) or m.group(2)
+        if module:
+            modules.append(module.split(".")[0])
+    for m in _IMPORT_JS.finditer(content):
+        module = m.group(1) or m.group(2)
+        if module and not module.startswith("."):
+            parts = module.split("/")
+            modules.append(parts[0] if parts[0] else parts[1] if len(parts) > 1 else module)
+    return list(dict.fromkeys(modules))
+
+
+@router.get("/{repo_id}/graph", response_model=GraphResponse)
+async def get_repository_graph(
+    repo_id: UUID,
+    depth: int = Query(0, ge=0, le=5),
+    focus: Optional[str] = Query(None),
+):
+    supabase = get_supabase()
+
+    repo_response = supabase.table("repositories").select("id").eq("id", str(repo_id)).execute()
+    if not repo_response.data:
+        raise HTTPException(status_code=404, detail="Repository not found")
+
+    query = (
+        supabase.table("files")
+        .select("id, file_path, language, size, content")
+        .eq("repository_id", str(repo_id))
+    )
+    files_response = query.execute()
+
+    if not files_response.data:
+        return GraphResponse()
+
+    nodes: list[GraphNode] = []
+    file_index: dict[str, int] = {}
+
+    for f in files_response.data:
+        node_id = f"file:{f['id']}"
+        file_index[f["file_path"]] = len(nodes)
+        nodes.append(GraphNode(
+            id=node_id,
+            label=f["file_path"],
+            type="file",
+            language=f.get("language"),
+            size=f.get("size"),
+        ))
+
+    edges: list[GraphEdge] = []
+    for f in files_response.data:
+        content = f.get("content") or ""
+        if not content:
+            continue
+
+        source_id = f"file:{f['id']}"
+        imports = _extract_imports(content)
+
+        for module in imports:
+            target_id = None
+            target_path = None
+            for path in file_index:
+                path_parts = path.replace("/", ".").replace(".py", "").replace(".ts", "").replace(".tsx", "").replace(".js", "").replace(".jsx", "")
+                if module in path_parts or path_parts.endswith(module):
+                    target_path = path
+                    break
+
+            if target_path and target_path != f["file_path"]:
+                target_idx = file_index[target_path]
+                target_id = nodes[target_idx].id
+
+            if target_id and target_id != source_id:
+                edges.append(GraphEdge(
+                    source=source_id,
+                    target=target_id,
+                    type="imports",
+                    label=f"imports {module}",
+                ))
+
+    return GraphResponse(nodes=nodes, edges=edges)
