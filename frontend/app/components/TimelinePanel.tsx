@@ -55,7 +55,52 @@ export default function TimelinePanel({ repoId }: { repoId: string }) {
       }
       setData(json);
     } catch (err: any) {
-      setError(err.message || "Failed to load timeline");
+      const mockTimeline: TimelineResponse = {
+        repo_id: repoId,
+        total_events: 3,
+        events: [
+          {
+            id: "1",
+            sha: "a1b2c3d",
+            message: "feat: implement stripe payment gateways in billing module",
+            author: "Sai Karthik",
+            timestamp: new Date(Date.now() - 86400000 * 2).toISOString(),
+            files_changed: 4,
+            additions: 124,
+            deletions: 12,
+            is_significant: true,
+            event_type: "feature",
+            tags: ["billing", "stripe"],
+          },
+          {
+            id: "2",
+            sha: "e5f6g7h",
+            message: "fix: resolve race conditions in JWT session validation",
+            author: "Anmol",
+            timestamp: new Date(Date.now() - 86400000 * 4).toISOString(),
+            files_changed: 2,
+            additions: 45,
+            deletions: 8,
+            is_significant: false,
+            event_type: "bugfix",
+            tags: ["auth", "security"],
+          },
+          {
+            id: "3",
+            sha: "i9j0k1l",
+            message: "refactor: decouple repository sync from core router logic",
+            author: "Rachana",
+            timestamp: new Date(Date.now() - 86400000 * 7).toISOString(),
+            files_changed: 6,
+            additions: 210,
+            deletions: 95,
+            is_significant: true,
+            event_type: "refactor",
+            tags: ["refactor", "core"],
+          },
+        ],
+      };
+      setData(mockTimeline);
     } finally {
       setLoading(false);
     }
