@@ -26,6 +26,7 @@ from app.models.schemas import (
     TimelineStats,
 )
 from app.services.repo_analyzer import RepoAnalyzer
+from app.services.chat_service import ChatService
 from app.utils import parse_github_url
 
 logger = logging.getLogger(__name__)
@@ -246,7 +247,8 @@ async def chat_with_repository(repo_id: UUID, body: ChatRequest, supabase = Depe
     if not repo_response.data:
         raise HTTPException(status_code=404, detail="Repository not found")
 
-    answer = f"[placeholder] RAG response for: {body.question}"
+    chat_service = ChatService(supabase, str(repo_id))
+    answer = chat_service.answer(body.question)
 
     chat_response = (
         supabase.table("chat_history")

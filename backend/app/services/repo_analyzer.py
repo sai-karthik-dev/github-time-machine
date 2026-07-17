@@ -414,10 +414,22 @@ class RepoAnalyzer:
         return response.data[0]
 
     def _generate_and_store_embeddings(self, batch: list[dict]) -> None:
-        if not hasattr(self, "_embed_warned"):
-            self._embed_warned = True
-            logger.info("Embeddings disabled — no OPENAI_API_KEY configured")
-        return
+        try:
+            from openai import OpenAI
+
+            texts = [item["content"] for item in batch]
+            client = OpenAI()
+            response = client.embeddings.create(
+                model=OPENAI_EMBEDDING_MODEL,
+                input=texts,
+                dimensions=EMBEDDING_DIMENSION,
+            )
+            for item, emb_data in zip(batch, response.data):
+                self.supabase.table("files").update({
+                    "embedding": emb_data.embedding,
+                }).eq("id", item["id"]).execute()
+        except Exception as e:
+            logger.warning(f"Embedding generation failed (non-fatal): {e}")
 
     def _update_repo_metadata(self) -> None:
         try:

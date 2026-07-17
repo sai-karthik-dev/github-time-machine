@@ -32,6 +32,11 @@ CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*")
 EMBEDDING_DIMENSION = _int_env("EMBEDDING_DIMENSION", 1536)
 OPENAI_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
 
+# ── Chat / LLM ────────────────────────────────────────────────────────
+CHAT_MODEL = os.getenv("CHAT_MODEL", "gpt-4o-mini")
+CHAT_MAX_TOKENS = _int_env("CHAT_MAX_TOKENS", 1024)
+CHAT_TEMPERATURE = float(os.getenv("CHAT_TEMPERATURE", "0.4"))
+
 # ── Repository Analysis ───────────────────────────────────────────────
 ANALYSIS_MAX_FILE_SIZE = _int_env("ANALYSIS_MAX_FILE_SIZE", 1_000_000)
 ANALYSIS_EMBED_BATCH_SIZE = _int_env("ANALYSIS_EMBED_BATCH_SIZE", 20)
