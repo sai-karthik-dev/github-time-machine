@@ -22,6 +22,7 @@ from app.core.config import (
 )
 from app.core.supabase import get_supabase
 from app.services.commit_analyzer import CommitAnalyzer
+from app.utils import parse_github_url
 
 logger = logging.getLogger(__name__)
 
@@ -418,9 +419,7 @@ class RepoAnalyzer:
 
     def _update_repo_metadata(self) -> None:
         try:
-            url_parts = self.github_url.rstrip("/").split("/")
-            owner = url_parts[-2] if len(url_parts) >= 2 else ""
-            name = url_parts[-1].replace(".git", "") if len(url_parts) >= 1 else ""
+            owner, name = parse_github_url(self.github_url)
 
             repo = Repo(self._temp_dir)
             default_branch = repo.active_branch.name if not repo.head.is_detached else "main"

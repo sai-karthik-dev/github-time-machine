@@ -26,6 +26,7 @@ from app.models.schemas import (
     TimelineStats,
 )
 from app.services.repo_analyzer import RepoAnalyzer
+from app.utils import parse_github_url
 
 logger = logging.getLogger(__name__)
 
@@ -71,10 +72,7 @@ async def submit_repository(body: RepositorySubmitRequest, background_tasks: Bac
         raise HTTPException(status_code=400, detail="Invalid GitHub URL. Must be https://github.com/<owner>/<repo>")
 
     user_id = _get_demo_user_id()
-
-    parts = body.github_url.rstrip("/").split("/")
-    owner = parts[-2] if len(parts) >= 2 else ""
-    name = parts[-1].replace(".git", "") if len(parts) >= 1 else ""
+    owner, name = parse_github_url(body.github_url)
 
     repo_response = (
         supabase.table("repositories")
