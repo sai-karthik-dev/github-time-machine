@@ -69,9 +69,18 @@ async def submit_repository(body: RepositorySubmitRequest, background_tasks: Bac
 
     user_id = _get_demo_user_id()
 
+    parts = body.github_url.rstrip("/").split("/")
+    owner = parts[-2] if len(parts) >= 2 else ""
+    name = parts[-1].replace(".git", "") if len(parts) >= 1 else ""
+
     repo_response = (
         supabase.table("repositories")
-        .insert({"github_url": body.github_url, "user_id": user_id})
+        .insert({
+            "github_url": body.github_url,
+            "user_id": user_id,
+            "name": name,
+            "owner": owner,
+        })
         .execute()
     )
     if not repo_response.data:
