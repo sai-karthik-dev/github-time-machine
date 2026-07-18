@@ -9,10 +9,15 @@ from app.routes.repos import router as repos_router
 
 app = FastAPI(title="GitHub Time Machine API", version="0.2.0")
 
+_cors_origins = [o.strip() for o in CORS_ORIGINS.split(",")]
+# Browsers reject credentialed requests against a wildcard origin, and CORS
+# middleware that advertises both is a common misconfiguration (OWASP).
+_allow_credentials = "*" not in _cors_origins
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in CORS_ORIGINS.split(",")],
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )

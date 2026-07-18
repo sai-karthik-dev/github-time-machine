@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 from git import Repo
 from app.core.supabase import get_supabase
+from app.models.schemas import RepositoryStatus
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ class CommitAnalyzer:
 
         # Update analysis status to "processing"
         supabase.table("analyses").update({
-            "status": "processing",
+            "status": RepositoryStatus.PROCESSING.value,
             "started_at": datetime.now(timezone.utc).isoformat(),
         }).eq("repository_id", repo_id).execute()
 
@@ -47,7 +48,7 @@ class CommitAnalyzer:
             if not repo.head.is_valid():
                 logger.info(f"Repository {canonical_path} is empty or has no commits.")
                 supabase.table("analyses").update({
-                    "status": "completed",
+                    "status": RepositoryStatus.COMPLETED.value,
                     "completed_at": datetime.now(timezone.utc).isoformat(),
                 }).eq("repository_id", repo_id).execute()
                 return
@@ -90,14 +91,14 @@ class CommitAnalyzer:
 
             # Update analysis status to "completed"
             supabase.table("analyses").update({
-                "status": "completed",
+                "status": RepositoryStatus.COMPLETED.value,
                 "completed_at": datetime.now(timezone.utc).isoformat(),
             }).eq("repository_id", repo_id).execute()
 
         except Exception as e:
             logger.exception(f"Failed to analyze commits for repository {repo_id} at {repo_path}")
             supabase.table("analyses").update({
-                "status": "error",
+                "status": RepositoryStatus.ERROR.value,
                 "error_message": str(e),
             }).eq("repository_id", repo_id).execute()
             raise e

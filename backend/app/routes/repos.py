@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 import httpx
 from app.dependencies import get_db
 
@@ -30,10 +31,12 @@ async def connect_repository(
         )
     
     supabase_jwt = authorization.split(" ")[1]
-    
+
     # 1. Validate session against Supabase Auth
+    # supabase-py is a sync client; offload it so it doesn't block the event loop
+    # (this route also awaits httpx calls below) — see Starlette's run_in_threadpool.
     try:
-        user_response = supabase.auth.get_user(supabase_jwt)
+        user_response = await run_in_threadpool(supabase.auth.get_user, supabase_jwt)
         supabase_user = user_response.user
         if not supabase_user:
             raise Exception("No user found in the returned session.")
@@ -41,7 +44,7 @@ async def connect_repository(
         logger.error(f"Supabase auth validation failed: {e}")
         raise HTTPException(
             status_code=401,
-            detail=f"Invalid Supabase session: {e}"
+            detail="Invalid or expired session."
         )
         
     # 2. Retrieve user information from GitHub API using the access token
@@ -52,9 +55,10 @@ async def connect_repository(
                 headers={"Authorization": f"Bearer {body.github_access_token}"}
             )
             if github_response.status_code != 200:
+                logger.error(f"GitHub validation failed with status {github_response.status_code}: {github_response.text}")
                 raise HTTPException(
                     status_code=401,
-                    detail=f"GitHub validation failed with status {github_response.status_code}: {github_response.text}"
+                    detail="GitHub token validation failed."
                 )
             github_user = github_response.json()
     except Exception as e:
@@ -63,7 +67,7 @@ async def connect_repository(
             raise e
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to communicate with GitHub: {e}"
+            detail="Failed to communicate with GitHub."
         )
 
     github_id = github_user.get("id")
@@ -112,12 +116,14 @@ async def connect_repository(
             "avatar_url": avatar_url,
         }
         
-        supabase.table("users").upsert(db_user_payload, on_conflict="id").execute()
+        await run_in_threadpool(
+            lambda: supabase.table("users").upsert(db_user_payload, on_conflict="id").execute()
+        )
     except Exception as e:
         logger.error(f"Failed to upsert user record: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Database update failed: {e}"
+            detail="Failed to save user profile."
         )
         
     # 4. Return the user profile + session info

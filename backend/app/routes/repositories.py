@@ -20,12 +20,14 @@ from app.models.schemas import (
     RepositoryPending,
     RepositoryProcessing,
     RepositoryResponse,
+    RepositoryStatus,
     RepositorySubmitRequest,
     TimelineEvent,
     TimelineResponse,
     TimelineStats,
 )
 from app.services.repo_analyzer import RepoAnalyzer
+from app.services.repo_cloner import RepoCloner
 from app.services.chat_service import ChatService
 from app.utils import parse_github_url
 
@@ -33,8 +35,6 @@ logger = logging.getLogger(__name__)
 
 _FIX_PATTERN = re.compile(r"\b(fix|bug|patch|hotfix|resolve|close)\b", re.IGNORECASE)
 _MERGE_PATTERN = re.compile(r"^merge", re.IGNORECASE)
-_IMPORT_PY = re.compile(r"(?:from\s+(\S+)\s+import|import\s+(\S+))")
-_IMPORT_JS = re.compile(r"""(?:import\s+.*?\s+from\s+['"]([^'"]+)['"]|require\s*\(\s*['"]([^'"]+)['"]\s*\))""")
 
 router = APIRouter(prefix="/repositories", tags=["repositories"])
 
@@ -63,7 +63,7 @@ def _run_analysis(repository_id: str, github_url: str) -> None:
         try:
             supabase = get_db()
             supabase.table("analyses").update({
-                "status": "error",
+                "status": RepositoryStatus.ERROR.value,
                 "error_message": str(e)[:500],
             }).eq("repository_id", repository_id).execute()
         except Exception as db_err:
@@ -75,9 +75,9 @@ def _run_analysis(repository_id: str, github_url: str) -> None:
     description="Creates a repository record and triggers background analysis: clone, parse files, extract commits, and store in Supabase.",
     tags=["repositories"],
 )
-async def submit_repository(body: RepositorySubmitRequest, background_tasks: BackgroundTasks, supabase = Depends(get_db)):
+def submit_repository(body: RepositorySubmitRequest, background_tasks: BackgroundTasks, supabase = Depends(get_db)):
 
-    if not RepoAnalyzer._validate_url(injected_url=body.github_url):
+    if not RepoCloner.validate_url(body.github_url):
         raise HTTPException(status_code=400, detail="Invalid GitHub URL. Must be https://github.com/<owner>/<repo>")
 
     user_id = _get_demo_user_id()
@@ -100,7 +100,7 @@ async def submit_repository(body: RepositorySubmitRequest, background_tasks: Bac
 
     supabase.table("analyses").insert({
         "repository_id": repo["id"],
-        "status": "pending",
+        "status": RepositoryStatus.PENDING.value,
     }).execute()
 
     background_tasks.add_task(_run_analysis, repo["id"], body.github_url)
@@ -113,7 +113,7 @@ async def submit_repository(body: RepositorySubmitRequest, background_tasks: Bac
 
 
 @router.post("/{repo_id}/analyze", response_model=RepositoryResponse, summary="Manually trigger analysis", tags=["repositories"])
-async def trigger_analysis(repo_id: UUID, background_tasks: BackgroundTasks, supabase = Depends(get_db)):
+def trigger_analysis(repo_id: UUID, background_tasks: BackgroundTasks, supabase = Depends(get_db)):
     repo_response = supabase.table("repositories").select("*").eq("id", str(repo_id)).execute()
     if not repo_response.data:
         raise HTTPException(status_code=404, detail="Repository not found")
@@ -130,7 +130,7 @@ async def trigger_analysis(repo_id: UUID, background_tasks: BackgroundTasks, sup
 
 
 @router.get("/", response_model=RepositoryListResponse, summary="List all repositories", tags=["repositories"])
-async def list_repositories(user_id: Optional[str] = Query(None, description="Filter by user ID"),
+def list_repositories(user_id: Optional[str] = Query(None, description="Filter by user ID"),
     limit: int = Query(20, le=100),
     offset: int = 0,
     supabase = Depends(get_db),
@@ -177,7 +177,7 @@ async def list_repositories(user_id: Optional[str] = Query(None, description="Fi
 
 
 @router.get("/{repo_id}", response_model=RepositoryResponse, summary="Get repository analysis status", tags=["repositories"])
-async def get_repository_status(repo_id: UUID, supabase = Depends(get_db)):
+def get_repository_status(repo_id: UUID, supabase = Depends(get_db)):
 
     repo_response = supabase.table("repositories").select("*").eq("id", str(repo_id)).execute()
     if not repo_response.data:
@@ -193,11 +193,11 @@ async def get_repository_status(repo_id: UUID, supabase = Depends(get_db)):
         .execute()
     )
 
-    status = "pending"
+    status = RepositoryStatus.PENDING.value
     analysis_data = None
     if analysis_response.data:
         analysis_data = analysis_response.data[0]
-        status = analysis_data.get("status", "pending")
+        status = analysis_data.get("status", RepositoryStatus.PENDING.value)
 
     files_count = (
         supabase.table("files").select("id", count="exact").eq("repository_id", str(repo_id)).execute()
@@ -207,7 +207,7 @@ async def get_repository_status(repo_id: UUID, supabase = Depends(get_db)):
         supabase.table("commits").select("id", count="exact").eq("repository_id", str(repo_id)).execute()
     ).count or 0
 
-    if status == "completed":
+    if status == RepositoryStatus.COMPLETED.value:
         from app.models.tables import Analysis
 
         return RepositoryCompleted(
@@ -224,7 +224,7 @@ async def get_repository_status(repo_id: UUID, supabase = Depends(get_db)):
                 if analysis_data and analysis_data.get("completed_at") else None,
         )
 
-    if status == "processing":
+    if status == RepositoryStatus.PROCESSING.value:
         return RepositoryProcessing(
             id=repo["id"],
             github_url=repo["github_url"],
@@ -233,7 +233,7 @@ async def get_repository_status(repo_id: UUID, supabase = Depends(get_db)):
             created_at=datetime.fromisoformat(repo["created_at"]),
         )
 
-    if status == "error":
+    if status == RepositoryStatus.ERROR.value:
         return RepositoryError(
             id=repo["id"],
             github_url=repo["github_url"],
@@ -249,7 +249,7 @@ async def get_repository_status(repo_id: UUID, supabase = Depends(get_db)):
 
 
 @router.post("/{repo_id}/chat", response_model=ChatResponse, summary="Chat with a repository", tags=["chat"])
-async def chat_with_repository(repo_id: UUID, body: ChatRequest, supabase = Depends(get_db)):
+def chat_with_repository(repo_id: UUID, body: ChatRequest, supabase = Depends(get_db)):
 
     repo_response = supabase.table("repositories").select("id").eq("id", str(repo_id)).execute()
     if not repo_response.data:
@@ -282,7 +282,7 @@ async def chat_with_repository(repo_id: UUID, body: ChatRequest, supabase = Depe
 
 
 @router.get("/{repo_id}/chat", response_model=list[ChatResponse], summary="Get chat history", tags=["chat"])
-async def get_chat_history(repo_id: UUID, limit: int = Query(50, le=100), supabase = Depends(get_db)):
+def get_chat_history(repo_id: UUID, limit: int = Query(50, le=100), supabase = Depends(get_db)):
 
     response = (
         supabase.table("chat_history")
@@ -306,7 +306,7 @@ async def get_chat_history(repo_id: UUID, limit: int = Query(50, le=100), supaba
 
 
 @router.get("/{repo_id}/timeline", response_model=TimelineResponse, summary="Get commit timeline", tags=["timeline"])
-async def get_repository_timeline(repo_id: UUID,
+def get_repository_timeline(repo_id: UUID,
     limit: int = Query(100, le=500),
     offset: int = 0,
     supabase = Depends(get_db),
@@ -365,22 +365,8 @@ async def get_repository_timeline(repo_id: UUID,
     return TimelineResponse(events=events, stats=stats)
 
 
-def _extract_imports(content: str) -> list[str]:
-    modules: list[str] = []
-    for m in _IMPORT_PY.finditer(content):
-        module = m.group(1) or m.group(2)
-        if module:
-            modules.append(module.split(".")[0])
-    for m in _IMPORT_JS.finditer(content):
-        module = m.group(1) or m.group(2)
-        if module and not module.startswith("."):
-            parts = module.split("/")
-            modules.append(parts[0] if parts[0] else parts[1] if len(parts) > 1 else module)
-    return list(dict.fromkeys(modules))
-
-
 @router.get("/{repo_id}/graph", response_model=GraphResponse, summary="Get knowledge graph (nodes + edges)", tags=["graph"])
-async def get_repository_graph(repo_id: UUID,
+def get_repository_graph(repo_id: UUID,
     depth: int = Query(0, ge=0, le=5),
     focus: Optional[str] = Query(None),
     supabase = Depends(get_db),
@@ -390,58 +376,43 @@ async def get_repository_graph(repo_id: UUID,
     if not repo_response.data:
         raise HTTPException(status_code=404, detail="Repository not found")
 
-    query = (
+    files_response = (
         supabase.table("files")
-        .select("id, file_path, language, size, content")
+        .select("id, file_path, language, size")
         .eq("repository_id", str(repo_id))
+        .execute()
     )
-    files_response = query.execute()
 
     if not files_response.data:
         return GraphResponse()
 
-    nodes: list[GraphNode] = []
-    file_index: dict[str, int] = {}
-
-    for f in files_response.data:
-        node_id = f"file:{f['id']}"
-        file_index[f["file_path"]] = len(nodes)
-        nodes.append(GraphNode(
-            id=node_id,
+    nodes = [
+        GraphNode(
+            id=f"file:{f['id']}",
             label=f["file_path"],
             type="file",
             language=f.get("language"),
             size=f.get("size"),
-        ))
+        )
+        for f in files_response.data
+    ]
 
-    edges: list[GraphEdge] = []
-    for f in files_response.data:
-        content = f.get("content") or ""
-        if not content:
-            continue
+    edges_response = (
+        supabase.table("edges")
+        .select("source_id, target_id, target_name")
+        .eq("repository_id", str(repo_id))
+        .eq("edge_type", "imports")
+        .execute()
+    )
 
-        source_id = f"file:{f['id']}"
-        imports = _extract_imports(content)
-
-        for module in imports:
-            target_id = None
-            target_path = None
-            for path in file_index:
-                path_parts = path.replace("/", ".").replace(".py", "").replace(".ts", "").replace(".tsx", "").replace(".js", "").replace(".jsx", "")
-                if module in path_parts or path_parts.endswith(module):
-                    target_path = path
-                    break
-
-            if target_path and target_path != f["file_path"]:
-                target_idx = file_index[target_path]
-                target_id = nodes[target_idx].id
-
-            if target_id and target_id != source_id:
-                edges.append(GraphEdge(
-                    source=source_id,
-                    target=target_id,
-                    type="imports",
-                    label=f"imports {module}",
-                ))
+    edges = [
+        GraphEdge(
+            source=f"file:{e['source_id']}",
+            target=f"file:{e['target_id']}",
+            type="imports",
+            label=f"imports {e.get('target_name', '')}",
+        )
+        for e in (edges_response.data or [])
+    ]
 
     return GraphResponse(nodes=nodes, edges=edges)
