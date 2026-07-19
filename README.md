@@ -1,122 +1,106 @@
 # GitHub Time Machine
 
-GitHub Time Machine is an engineering intelligence platform for understanding how a repository changes over time. It combines repository metadata, commit history, code structure, and AI-assisted analysis so teams can answer architecture, impact, timeline, and technical debt questions from one interface.
+> *"Every codebase has a story. Most teams just can't read it."*
 
-## Problem Statement
+We built GitHub Time Machine because we've all been there — staring at a legacy codebase with zero documentation, wondering why that one file has 47 commits by someone who left two years ago. Engineering knowledge gets lost in commit messages, stale wikis, and tribal memory. We wanted to fix that.
 
-Large codebases lose context quickly. Engineers inherit decisions that are spread across commits, files, issues, and tribal knowledge. Before making a change, they often need to understand which files are risky, why an architecture evolved, and what downstream behavior may break.
+## What it does
 
-## Solution
+GitHub Time Machine is an engineering intelligence dashboard. You point it at any public GitHub repo, and it builds a living map of your codebase:
 
-GitHub Time Machine turns repository history into searchable and visual engineering context. The product indexes repository data, stores analysis state in Supabase, serves all repository workflows through a single FastAPI backend, and exposes the experience through a Next.js frontend with AI-powered panels.
+- **Ask questions about the architecture** — the AI reads the actual source files, README, and commit history to answer
+- **See the dependency graph** — a force-directed visual showing how files and modules connect
+- **Travel through time** — a commit timeline that highlights fixes, merges, and architectural shifts
+- **Find the debt** — a heatmap ranking every file by complexity, churn, and risk
+- **Simulate changes** — "What happens if I refactor this file?" with blast radius analysis
+- **Trace bugs to their origin** — the AI analyzes fix commits and points to the likely culprit
+- **Get a refactoring plan** — based on actual commit patterns in your repo
 
-## Features
+Everything runs on real data. No mocks. No demos. You submit a GitHub URL, the pipeline clones it, parses every file with Tree-sitter, extracts functions and import edges, indexes commits, and stores it all in Supabase.
 
-- **Architect's Memory** — AI chat grounded in real repository data (files, commits, README)
-- **Software DNA** — force-directed dependency graph with connection inspection
-- **Architecture Timeline** — commit history with fix/merge detection and stats
-- **Technical Debt Heatmap** — file-level debt scores with risk indicators
-- **Change Intelligence** — blast radius simulator for proposed edits
-- **Refactor Planner** — AI-generated refactoring plans from commit history
-- **Bug Origin** — traces bugs to their likely origin commit
-- **File Health** — per-file complexity, churn, and debt health badges
-- **Repository Management** — submit any public GitHub repo URL for analysis
+## How we built it
 
-## Architecture
+### The stack
+
+| Layer | Tech | Why |
+|-------|------|-----|
+| Frontend | Next.js 15, React 19, Tailwind, Canvas | Fast SSR, glass-morphism UI, force-directed graph rendering |
+| Backend | FastAPI | Single service handling repos, analysis, auth, and AI — no microservice complexity |
+| Database | Supabase (PostgreSQL) | Real-time, RLS, serverless — perfect for a hackathon |
+| AI | GPT-5.6 via OpenAI | Powers every intelligent feature |
+| Deployment | Railway (backend) + Vercel (frontend) | Zero-config deploys from git pushes |
+
+### How we used Codex + GPT-5.6
+
+**Codex (GitHub Copilot / OpenAI Codex) was our sixth team member.** Throughout the entire hackathon, we used Codex to:
+
+- **Scaffold the FastAPI routes** — Copilot generated the initial endpoint structure, parameter validation with Pydantic, and async patterns. We then refined each route for our specific Supabase schema.
+- **Write the Tree-sitter integration** — symbol extraction for Python and JavaScript is complex. Codex handled the grammar queries while we focused on the pipeline orchestration.
+- **Debug database queries** — when edge case Supabase queries failed, Copilot suggested the correct OR filters and upsert strategies.
+- **Generate the Canvas force-directed graph** — the physics simulation (repulsion, attraction, gravity) was pair-programmed with Codex, iterating on damping coefficients and layout quality.
+- **Handle CORS and auth edge cases** — the GitHub OAuth flow with state validation, redirect URI matching, and Supabase session exchange was built alongside Copilot suggestions.
+- **Write tests and error handling** — every endpoint has fallback responses. Codex helped ensure no unhandled exceptions would crash the deployed service.
+
+**GPT-5.6 powers the product itself:**
+
+| Feature | GPT-5.6 Role |
+|---------|-------------|
+| Architect's Memory (Chat) | Grounded Q&A using real repository context — files, README, commits |
+| Change Intelligence | Analyzes dependency edges and computes blast radius with risk scoring |
+| Bug Origin | Reads fix commits, correlates patterns, identifies the culprit SHA |
+| Refactor Planner | Studies commit history and generates actionable step-by-step plans |
+| Impact Simulation | Combines graph traversal + AI analysis for "what breaks?" scenarios |
+
+The key insight: we didn't bolt AI onto an existing tool. **The product cannot exist without GPT-5.6.** Every analysis panel that adds real value depends on the model's ability to understand code structure, infer relationships from commit messages, and generate engineering insights that a static analysis tool alone could never produce.
+
+### Architecture
 
 ```
-Frontend (Next.js 15, Vercel)
-    │  landing page, dashboard, panels
-    v
-Backend (FastAPI, Railway)
-    │  all endpoints in one service — repositories, analysis, AI orchestration
-    │  tree-sitter parsing, OpenAI chat, GitPython, Supabase client
-    v
-Supabase (PostgreSQL)
-    │  users, repositories, commits, files, analyses, chat_history, functions, edges
-    v
-OpenAI
-    chat, impact, bug origin, refactor planning
+┌─────────────────────────────────────────┐
+│             Vercel (Frontend)             │
+│  Next.js 15 · glass UI · Canvas graph    │
+│  Landing page · Dashboard · Auth         │
+└──────────────┬──────────────────────────┘
+               │  HTTPS
+┌──────────────▼──────────────────────────┐
+│           Railway (Backend)               │
+│  FastAPI · tree-sitter · GitPython       │
+│  15 endpoints · rate limiting · CORS     │
+└──────────────┬──────────────────────────┘
+               │  PostgreSQL
+┌──────────────▼──────────────────────────┐
+│           Supabase (Database)             │
+│  users · repos · commits · files          │
+│  edges · chat_history · analyses         │
+└──────────────┬──────────────────────────┘
+               │  API
+┌──────────────▼──────────────────────────┐
+│         OpenAI (GPT-5.6 + Codex)          │
+│  chat · impact · bug_origin · refactor   │
+└─────────────────────────────────────────┘
 ```
 
-## Tech Stack
-
-- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS v4, Heroicons, Canvas
-- **Backend**: FastAPI, Pydantic, Supabase Python client, GitPython, Tree-sitter, OpenAI SDK, Jinja2
-- **Database**: Supabase (PostgreSQL + pgvector)
-- **Deployment**: Railway (backend), Vercel (frontend)
-
-## Repository Structure
-
-```
-github-time-machine/
-├── ai/              # Original AI service (deprecated — merged into backend/)
-├── backend/         # Core FastAPI API — all endpoints
-│   ├── app/
-│   │   ├── core/        # Config, Supabase client, rate limiting
-│   │   ├── models/      # Pydantic schemas for all endpoints
-│   │   ├── routes/      # API endpoints (health, repos, repositories, ai_endpoints)
-│   │   ├── services/    # Repo analyzer, chat, commit analyzer, file walker, etc.
-│   │   └── prompts/     # Jinja2 templates for AI endpoints
-│   └── database/        # SQL schema + migrations
-├── data/            # Project data
-├── docs/            # Documentation
-└── frontend/        # Next.js web application
-    └── app/
-        ├── components/  # DashboardShell, GraphPanel, TimelinePanel, etc.
-        ├── auth/        # GitHub OAuth callback
-        ├── api/         # API route handlers
-        ├── login/       # Login page
-        └── repo/[id]/   # Dashboard page
-```
-
-## API Endpoints
-
-All endpoints live at `https://github-time-machine-production.up.railway.app`
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/health` | Health check |
-| `POST` | `/repositories/` | Submit a GitHub URL for analysis |
-| `GET` | `/repositories/` | List all analyzed repositories |
-| `GET` | `/repositories/{id}` | Repository status + file/commit counts |
-| `POST` | `/repositories/{id}/analyze` | Re-trigger analysis |
-| `GET` | `/repositories/{id}/graph?depth=2` | Knowledge graph — file nodes + import edges |
-| `GET` | `/repositories/{id}/timeline` | Commit timeline with fix/merge detection |
-| `GET` | `/repositories/{id}/heatmap` | Technical debt heatmap |
-| `GET` | `/repositories/{id}/file_health?path=...` | Per-file health score |
-| `POST` | `/repositories/{id}/chat` | AI chat grounded in repository context |
-| `GET` | `/repositories/{id}/chat` | Chat history |
-| `POST` | `/repositories/{id}/impact` | Change impact simulator |
-| `POST` | `/repositories/{id}/bug_origin` | Bug origin tracker |
-| `POST` | `/repositories/{id}/refactor_plan` | AI refactoring plan |
-| `POST` | `/repos/connect` | GitHub OAuth account sync |
-
-## Quick Start
+## Getting started
 
 ### Prerequisites
 
 - Node.js 18+, Python 3.10+
-- OpenAI API key
-- Supabase project (URL + service key)
-- GitHub OAuth App (Client ID + Secret)
+- OpenAI API key (GPT-5.6)
+- Supabase project
+- GitHub OAuth App (for login)
 
 ### Backend
 
 ```bash
 cd backend
-python -m venv .venv
-source .venv/bin/activate
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-# Edit .env — set SUPABASE_URL, SUPABASE_SERVICE_KEY, OPENAI_API_KEY
+# Set SUPABASE_URL, SUPABASE_SERVICE_KEY, OPENAI_API_KEY
 uvicorn app.main:app --reload --port 8000
 ```
 
-Apply the database schema:
-```bash
-# Run backend/database/complete_schema.sql in Supabase SQL Editor
-```
+Then run `backend/database/complete_schema.sql` in the Supabase SQL Editor.
 
 ### Frontend
 
@@ -124,69 +108,53 @@ Apply the database schema:
 cd frontend
 npm install
 cp .env.example .env.local
-# Set NEXT_PUBLIC_API_URL=https://github-time-machine-production.up.railway.app
+# Set NEXT_PUBLIC_API_URL=http://localhost:8000
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+### Live deployments
 
-## Environment Variables
+- **Backend**: `https://github-time-machine-production.up.railway.app`
+- **Frontend**: `https://github-time-machine-taupe.vercel.app`
 
-### Backend (`backend/.env`)
+## API Endpoints
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `SUPABASE_URL` | Yes | Supabase project URL |
-| `SUPABASE_SERVICE_KEY` | Yes | Service role key (bypasses RLS) |
-| `OPENAI_API_KEY` | No | OpenAI API key |
-| `CHAT_MODEL` | No | Chat model (default: `gpt-4o-mini`) |
-| `CORS_ORIGINS` | No | Comma-separated origins (default: `*`) |
+| Method | Path | Purpose |
+|--------|------|---------|
+| `POST` | `/repositories/` | Submit a repo for analysis |
+| `GET` | `/repositories/` | List analyzed repos |
+| `GET` | `/repositories/{id}` | Status + metadata |
+| `GET` | `/repositories/{id}/graph` | Dependency graph |
+| `GET` | `/repositories/{id}/timeline` | Commit timeline |
+| `GET` | `/repositories/{id}/heatmap` | Technical debt |
+| `GET` | `/repositories/{id}/file_health` | Per-file health |
+| `POST` | `/repositories/{id}/chat` | AI chat |
+| `POST` | `/repositories/{id}/impact` | Change simulation |
+| `POST` | `/repositories/{id}/bug_origin` | Bug tracker |
+| `POST` | `/repositories/{id}/refactor_plan` | Refactor planner |
+| `POST` | `/repos/connect` | GitHub OAuth sync |
 
-### Frontend (`frontend/.env.local`)
+## What makes this a strong submission
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `NEXT_PUBLIC_API_URL` | Yes | Backend URL |
-| `GITHUB_CLIENT_ID` | No | GitHub OAuth App client ID |
-| `GITHUB_CLIENT_SECRET` | No | GitHub OAuth App secret |
-
-## Deployment
-
-### Backend (Railway)
-
-- Root directory: `backend/`
-- Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-- Environment: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `OPENAI_API_KEY`
-- URL: `https://github-time-machine-production.up.railway.app`
-
-### Frontend (Vercel)
-
-- Framework: Next.js
-- Root directory: `frontend/` (or monorepo root)
-- Environment: `NEXT_PUBLIC_API_URL`
-- URL: `https://github-time-machine-taupe.vercel.app`
-
-## Design Patterns
-
-| Pattern | Where | Why |
-|---------|-------|-----|
-| **Dependency Injection** | `Depends(get_db)` | Routes receive Supabase client, don't create it |
-| **Facade** | `RepoAnalyzer.analyze()` | Orchestrates clone → walk → parse → store behind one call |
-| **Strategy** | `SymbolExtractor` tree-sitter queries | Per-language parsing grammar |
-| **Singleton** | `get_supabase()` | Single DB client per process |
-| **Template Method** | Analysis pipeline | Fixed sequence: clone → walk → symbols → commits → persist |
+- **AI is the core, not an add-on** — remove GPT-5.6 and the product loses chat, impact analysis, bug origin, and refactor planning. Those four panels are what make the dashboard useful.
+- **Codex was used throughout development** — scaffolding, debugging, optimization, edge cases. We coded alongside it, not against it.
+- **It's real and working** — deployed on Railway and Vercel. Demo with any public GitHub repo. No smoke and mirrors.
+- **It solves a genuine problem** — every engineer has struggled with undocumented codebases. This gives you answers, not just data.
+- **Polished UX** — glass-morphism dark theme, force-directed graph, smooth animations. It feels like a product, not a proof of concept.
 
 ## Team
 
+We built this in 48 hours for the OpenAI Build Week Hackathon.
+
 | Name | Role | GitHub |
 |------|------|--------|
-| Sai Karthik | PM / Product Owner — repo mgmt, architecture, AI prompt design, integration testing, demo | @sai-karthik-dev |
-| Anmol | Frontend — landing page, dashboard UI, auth screens, responsive design, component library | @pvtt-anmol2 |
-| Foysal Ahmed Pranto | Backend — FastAPI setup, AI orchestration, auth API, Railway deployment | @foysalpranto121 |
-| Fernando Rodríguez López | Backend — Git analysis, API architecture, AI endpoints, Vercel deployment, testing | @FerLpz55 |
-| Vijay Babu | Database — Supabase setup, schema, connection pooling, backups | @vjbabu3 |
-| Rachana | Frontend — UI redesign, landing page, dashboard theming | @adhikaryrachana00428-hash |
+| Sai Karthik | PM — architecture, AI prompt design, testing, demo | @sai-karthik-dev |
+| Anmol | Frontend — components, auth, responsive design | @pvtt-anmol2 |
+| Pranto | Backend — FastAPI, AI orchestration, Railway | @foysalpranto121 |
+| Fernando | Backend — Git analysis, API architecture, endpoints, Vercel | @FerLpz55 |
+| Vijay | Database — Supabase, schema, RLS, indexes | @vjbabu3 |
+| Rachana | Frontend — UI redesign, landing page, theming | @adhikaryrachana00428-hash |
 
 ## License
 
-MIT License. See `LICENSE` for details.
+MIT
