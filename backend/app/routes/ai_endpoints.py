@@ -160,8 +160,8 @@ def _call_openai(messages: list[dict], max_tokens: int = 1500, temperature: floa
             temperature=temperature,
         )
         return response.choices[0].message.content or ""
-    except Exception:
-        logger.exception("OpenAI call failed")
+    except Exception as e:
+        logger.warning("OpenAI call failed: %s", e)
         raise HTTPException(status_code=502, detail="AI service returned an error")
 
 
@@ -188,28 +188,27 @@ def get_impact(repo_id: UUID, body: ImpactRequest, supabase=Depends(get_db)):
 
     edges = (
         supabase.table("edges")
-        .select("source, target, type")
-        .or_(f"source.like.%{target}%,target.like.%{target}%")
+        .select("source_name, target_name, edge_type")
         .eq("repository_id", repo_id_str)
         .execute()
     )
 
     files = supabase.table("files").select("file_path, language, size").eq("repository_id", repo_id_str).execute()
-    all_paths = [f["file_path"] for f in (files.data or [])]
+    all_paths = {f["file_path"] for f in (files.data or [])}
 
     deps: list[dict] = []
     if edges.data:
         seen = set()
         for e in edges.data:
-            source = e.get("source", "")
-            target_field = e.get("target", "")
-            edge_type = e.get("type", "imports")
-            if source in all_paths and source not in seen:
+            source = e.get("source_name", "")
+            target_e = e.get("target_name", "")
+            edge_type = e.get("edge_type", "imports")
+            if source and source in all_paths and source not in seen:
                 seen.add(source)
                 deps.append({"path": source, "relationship": edge_type, "functions": []})
-            if target_field in all_paths and target_field not in seen:
-                seen.add(target_field)
-                deps.append({"path": target_field, "relationship": edge_type, "functions": []})
+            if target_e and target_e in all_paths and target_e not in seen:
+                seen.add(target_e)
+                deps.append({"path": target_e, "relationship": edge_type, "functions": []})
 
     commits = (
         supabase.table("commits")
@@ -244,7 +243,8 @@ def get_impact(repo_id: UUID, body: ImpactRequest, supabase=Depends(get_db)):
     try:
         template = _jinja.get_template("impact_analysis.j2")
         user_prompt = template.render(**prompt_context)
-    except Exception:
+    except Exception as e:
+        logger.warning("jinja2 render failed: %s", e)
         user_prompt = f"Analyze the impact of {body.change_type} on {target} in {repo_name}."
 
     system = "You are a code impact analyst. Be specific, reference file paths. Respond in JSON-like structure."
