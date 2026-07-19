@@ -1,0 +1,49 @@
+## Context: Change Impact Analysis
+
+The engineer wants to know: **"What breaks if I {{ change_type }} `{{ target_path }}`?"**
+
+### Repository: {{ repo.full_name }}
+
+### Target File: `{{ target_path }}`
+{% if target_file %}
+- **Language**: {{ target_file.language }}
+- **Lines**: {{ target_file.line_count }}
+- **Complexity**: {{ target_file.complexity_score }}/100
+{% endif %}
+
+{% if description %}
+### Proposed Change
+{{ description }}
+{% endif %}
+
+### Dependency Chain (files that depend on or call the target)
+{% for dep in dependencies %}
+- **{{ dep.relationship }}** — `{{ dep.path }}`
+  {%- if dep.functions %} (functions: {{ dep.functions | join(', ') }}){% endif %}
+{% endfor %}
+
+{% if reverse_deps %}
+### Files the target depends on
+{% for dep in reverse_deps %}
+- `{{ dep.path }}` via {{ dep.relationship }}
+{% endfor %}
+{% endif %}
+
+{% if recent_commits %}
+### Recent Changes to Target
+{% for c in recent_commits[:5] %}
+- `{{ c.sha[:7] }}` by {{ c.author_name }}: {{ c.message }}
+{% endfor %}
+{% endif %}
+
+---
+
+Please provide a comprehensive impact analysis:
+
+1. **Blast radius**: List every file/module that would be affected and explain why
+2. **Risk assessment**: Rate the overall risk (Low / Medium / High / Critical) with reasoning
+3. **Breakage scenarios**: What specific things would break? (imports, function calls, data flow)
+4. **Suggested tests**: What tests should be written or run before making this change?
+5. **Safe approach**: How would you recommend making this change safely?
+
+Be specific — reference actual file paths and dependency types from the data above.

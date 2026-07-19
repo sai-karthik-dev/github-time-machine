@@ -1,0 +1,24 @@
+## Context: Refactor Planner
+
+The engineer wants a step-by-step refactoring plan based on recent architectural changes and identified technical debt.
+
+### Repository: {{ repo.full_name }}
+
+### Recent Refactor Commits
+{% for c in refactor_commits %}
+- `{{ c.sha[:7] }}` by {{ c.author_name }} ({{ c.timestamp.strftime('%Y-%m-%d') }})
+  {{ c.message }}
+  Files changed: {{ c.files_changed }} (+{{ c.additions }}/-{{ c.deletions }})
+{% endfor %}
+
+---
+
+Based on the recent refactoring history and typical technical debt patterns in this codebase, provide a concrete, step-by-step refactoring plan. 
+
+Format your response as follows:
+1. **Goal**: A short summary of the overarching refactoring goal.
+2. **Step-by-Step Plan**: Provide numbered steps. For each step, include:
+   - What needs to be done.
+   - Which files/modules are involved.
+   - Estimated effort (Low, Medium, High).
+3. **Rollback Strategy**: What to do if the refactor causes regressions.
