@@ -86,25 +86,34 @@ def submit_repository(body: RepositorySubmitRequest, background_tasks: Backgroun
     owner, name = parse_github_url(body.github_url)
 
     # Check if repo already exists
-    existing = (
-        supabase.table("repositories")
-        .select("id, github_url, name, owner, created_at")
-        .eq("github_url", body.github_url)
-        .limit(1)
-        .execute()
-    )
-    if existing.data:
-        repo = existing.data[0]
-        # Check latest analysis status
-        analysis = (
-            supabase.table("analyses")
-            .select("status")
-            .eq("repository_id", repo["id"])
-            .order("created_at", desc=True)
+    try:
+        existing = (
+            supabase.table("repositories")
+            .select("id, github_url, name, owner, created_at")
+            .eq("github_url", body.github_url)
             .limit(1)
             .execute()
         )
-        status = analysis.data[0]["status"] if analysis.data else "pending"
+    except Exception as e:
+        logger.error(f"Existing repo check failed: {e}")
+        existing = None
+
+    if existing and existing.data:
+        repo = existing.data[0]
+        # Check latest analysis status — use range for compatibility
+        try:
+            analysis = (
+                supabase.table("analyses")
+                .select("status")
+                .eq("repository_id", repo["id"])
+                .order("created_at", desc=True)
+                .limit(1)
+                .execute()
+            )
+            status = analysis.data[0]["status"] if analysis.data else "pending"
+        except Exception as e:
+            logger.warning(f"Analysis check failed for repo {repo['id']}: {e}")
+            status = "error"
         if status == "completed":
             return RepositoryPending(
                 id=repo["id"],
