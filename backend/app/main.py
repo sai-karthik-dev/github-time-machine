@@ -7,6 +7,7 @@ from app.routes.health import router as health_router
 from app.routes.repositories import router as repositories_router
 from app.routes.repos import router as repos_router
 from app.routes.ai_endpoints import router as ai_endpoints_router
+from app.routes.admin import router as admin_router
 
 app = FastAPI(title="GitHub Time Machine API", version="0.2.0")
 
@@ -29,3 +30,4 @@ app.include_router(health_router)
 app.include_router(repositories_router)
 app.include_router(repos_router)
 app.include_router(ai_endpoints_router)
+app.include_router(admin_router)
