@@ -15,3 +15,4 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return <html lang="en"><body className={`${inter.variable} ${mono.variable}`}>{children}</body></html>;
 }
 // force rebuild 1784578932
+// force rebuild 1784579044
