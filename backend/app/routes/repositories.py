@@ -96,7 +96,7 @@ def submit_repository(body: RepositorySubmitRequest, background_tasks: Backgroun
         .execute()
     )
     if not repo_response.data:
-        raise HTTPException(status_code=500, detail="Failed to create repository")
+        raise HTTPException(status_code=409, detail="Repository already exists or could not be created")
 
     repo = repo_response.data[0]
 

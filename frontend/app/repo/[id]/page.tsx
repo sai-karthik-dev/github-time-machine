@@ -76,6 +76,22 @@ export default function RepoDashboard({ params }: { params: Promise<{ id: string
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ github_url: newUrl.trim() }),
       });
+      if (res.status === 409) {
+        // Repo already exists — find it in the list and navigate
+        const listRes = await fetch(`${API_URL}/repositories/`);
+        if (listRes.ok) {
+          const listData = await listRes.json();
+          const existing = (listData.repositories || []).find(
+            (r: any) => r.github_url === newUrl.trim()
+          );
+          if (existing) {
+            setNewUrl(""); setAddingRepo(false); await fetchRepos();
+            router.push(`/repo/${existing.id}`);
+            return;
+          }
+        }
+        throw new Error("Repository already submitted. Refreshing list...");
+      }
       if (!res.ok) throw new Error("Failed to submit");
       const created = await res.json();
       setNewUrl("");
