@@ -14,3 +14,4 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="en"><body className={`${inter.variable} ${mono.variable}`}>{children}</body></html>;
 }
+// force rebuild 1784562347
