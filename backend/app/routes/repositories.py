@@ -85,18 +85,41 @@ def submit_repository(body: RepositorySubmitRequest, background_tasks: Backgroun
     user_id = _get_demo_user_id()
     owner, name = parse_github_url(body.github_url)
 
-    repo_response = (
-        supabase.table("repositories")
-        .insert({
-            "github_url": body.github_url,
-            "user_id": user_id,
-            "name": name,
-            "owner": owner,
-        })
-        .execute()
-    )
-    if not repo_response.data:
+    try:
+        repo_response = (
+            supabase.table("repositories")
+            .insert({
+                "github_url": body.github_url,
+                "user_id": user_id,
+                "name": name,
+                "owner": owner,
+            })
+            .execute()
+        )
+    except Exception:
+        # Unique constraint violation — repo already exists
+        try:
+            existing = (
+                supabase.table("repositories")
+                .select("id, github_url, created_at")
+                .eq("github_url", body.github_url)
+                .limit(1)
+                .execute()
+            )
+            if existing.data:
+                repo = existing.data[0]
+                return RepositoryPending(
+                    id=repo["id"],
+                    github_url=repo["github_url"],
+                    message="Repository already indexed.",
+                    created_at=datetime.fromisoformat(repo["created_at"]),
+                )
+        except Exception:
+            pass
         raise HTTPException(status_code=409, detail="Repository already exists or could not be created")
+
+    if not repo_response.data:
+        raise HTTPException(status_code=500, detail="Failed to create repository")
 
     repo = repo_response.data[0]
 
