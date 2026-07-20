@@ -85,22 +85,24 @@ def submit_repository(body: RepositorySubmitRequest, background_tasks: Backgroun
     user_id = _get_demo_user_id()
     owner, name = parse_github_url(body.github_url)
 
-    # Check if repo already exists
-    existing = (
-        supabase.table("repositories")
-        .select("id, github_url, created_at")
-        .eq("github_url", body.github_url)
-        .execute()
-    )
-    if existing.data:
-        repo = existing.data[0]
-        return {
-            "id": repo["id"],
-            "status": "exists",
-            "github_url": repo["github_url"],
-            "message": "Repository already indexed. Redirecting to dashboard.",
-            "created_at": repo["created_at"],
-        }
+    # Check if repo already exists — return existing record if found
+    try:
+        existing = (
+            supabase.table("repositories")
+            .select("id, github_url, created_at")
+            .eq("github_url", body.github_url)
+            .execute()
+        )
+        if existing and existing.data:
+            repo = existing.data[0]
+            return RepositoryPending(
+                id=repo["id"],
+                github_url=repo["github_url"],
+                message="Repository already indexed. Redirecting to dashboard.",
+                created_at=datetime.fromisoformat(repo["created_at"]),
+            )
+    except Exception:
+        pass  # fall through to insert
 
     repo_response = (
         supabase.table("repositories")
@@ -113,6 +115,21 @@ def submit_repository(body: RepositorySubmitRequest, background_tasks: Backgroun
         .execute()
     )
     if not repo_response.data:
+        # Duplicate race condition — fetch the existing record
+        fallback = (
+            supabase.table("repositories")
+            .select("id, github_url, created_at")
+            .eq("github_url", body.github_url)
+            .execute()
+        )
+        if fallback and fallback.data:
+            repo = fallback.data[0]
+            return RepositoryPending(
+                id=repo["id"],
+                github_url=repo["github_url"],
+                message="Repository already indexed. Redirecting to dashboard.",
+                created_at=datetime.fromisoformat(repo["created_at"]),
+            )
         raise HTTPException(status_code=500, detail="Failed to create repository")
 
     repo = repo_response.data[0]
